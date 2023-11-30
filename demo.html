@@ -115,7 +115,18 @@ class jsEpub {
       this.zip.folder('OEBPS').file('cover.jpg', fetch(this.coverImage).then(response => response.blob()));
     }
 
-    return this.zip.generateAsync({ type: 'blob' });
+    const mimetype = 'application/epub+zip';
+    this.zip.file('mimetype', mimetype);
+
+    return this.zip.generateAsync({
+      type: 'blob',
+      mimeType: mimetype,
+      compression: 'DEFLATE',
+      compressionOptions: {
+        level: 9
+      }
+    });
+
   }
 
   buildNavMap(chapters) {
@@ -143,11 +154,8 @@ jsepub.init({
 jsepub.cover('https://placehold.co/600x800/000000/FFFFFF.png');
 
 jsepub.addChapter('Chương 1', '<p>Nội dung chương 1.</p>');
-jsepub.addChapter('Chương 1.1', '<p>Nội dung chương 1.1.</p>');
-jsepub.addChapter('Chương 1.2', '<p>Nội dung chương 1.2.</p>');
 jsepub.addChapter('Chương 2', '<p>Nội dung chương 2.</p>');
 jsepub.addChapter('Chương 3', '<p>Nội dung chương 3.</p>');
-jsepub.addChapter('Chương 3.1', '<p>Nội dung chương 3.1.</p>');
 jsepub.addChapter('Chương 4', '<p>Nội dung chương 4.</p>');
 
 jsepub.generate().then(epubBlob => {
