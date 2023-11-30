@@ -1,0 +1,119 @@
+class jsEpub {
+  constructor() {
+    this.title = '';
+    this.author = '';
+    this.publisher = '';
+    this.description = '';
+    this.tags = [];
+    this.chapters = [];
+    this.coverImage = null;
+    this.zip = new JSZip();
+  }
+
+  init(metadata) {
+    this.title = metadata.title || '';
+    this.author = metadata.author || '';
+    this.publisher = metadata.publisher || '';
+    this.description = metadata.description || '';
+    this.tags = metadata.tags || [];
+  }
+
+  cover(data) {
+    this.coverImage = data;
+  }
+
+  addChapter(title, content) {
+    this.chapters.push({ title, content });
+  }
+
+  generate() {
+    const container = '<?xml version="1.0" encoding="UTF-8"?>' +
+      '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">' +
+      '<rootfiles>' +
+      '<rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>' +
+      '</rootfiles>' +
+      '</container>';
+
+    this.zip.folder('META-INF').file('container.xml', container);
+
+    const titlePage = `<html xmlns="http://www.w3.org/1999/xhtml">
+      <head><title>${this.title}</title></head>
+      <body>
+        <h1>${this.title}</h1>
+        <p>${this.author}</p>
+        <p>${this.publisher}</p>
+        <p>${this.description}</p>
+        <p>${this.tags.join(', ')}</p>
+      </body>
+    </html>`;
+
+    this.zip.folder('OEBPS').file('title.html', titlePage);
+
+    const opf = `<?xml version="1.0" encoding="UTF-8"?>
+      <package xmlns="http://www.idpf.org/2007/opf" version="2.0" unique-identifier="BookID">
+        <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+          <dc:title>${this.title}</dc:title>
+          <dc:creator opf:role="aut">${this.author}</dc:creator>
+          <dc:publisher>${this.publisher}</dc:publisher>
+          <dc:description>${this.description}</dc:description>
+          ${this.tags.map(tag => `<dc:subject>${tag}</dc:subject>`).join('\n')}
+        </metadata>
+        <manifest>
+          <item id="title" href="title.html" media-type="application/xhtml+xml"/>
+          <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+          ${this.chapters.map((chapter, index) => `<item id="chapter${index + 1}" href="chapter${index + 1}.html" media-type="application/xhtml+xml"/>`).join('\n')}
+          ${this.coverImage ? '<item id="cover-image" href="cover.jpg" media-type="image/jpeg"/>' : ''}
+        </manifest>
+        <spine toc="ncx">
+          ${this.chapters.map((chapter, index) => `<itemref idref="chapter${index + 1}"/>`).join('\n')}
+        </spine>
+        ${this.coverImage ? '<guide><reference type="cover" title="Cover" href="cover.jpg"/></guide>' : ''}
+      </package>`;
+
+    this.zip.folder('OEBPS').file('content.opf', opf);
+
+    const toc = `<?xml version="1.0" encoding="UTF-8"?>
+      <ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1">
+        <head>
+          <meta name="dtb:uid" content="BookID"/>
+          <meta name="dtb:depth" content="1"/>
+          <meta name="dtb:totalPageCount" content="0"/>
+          <meta name="dtb:maxPageNumber" content="0"/>
+        </head>
+        <docTitle><text>${this.title}</text></docTitle>
+        <navMap>
+          ${this.buildNavMap(this.chapters)}
+        </navMap>
+      </ncx>`;
+
+    this.zip.folder('OEBPS').file('toc.ncx', toc);
+
+    this.chapters.forEach((chapter, index) => {
+      const filename = `chapter${index + 1}.html`;
+      const content = `<html xmlns="http://www.w3.org/1999/xhtml">
+        <head><title>${chapter.title}</title></head>
+        <body>${chapter.content}</body>
+      </html>`;
+
+      this.zip.folder('OEBPS').file(filename, content);
+    });
+
+    if (this.coverImage) {
+      this.zip.folder('OEBPS').file('cover.jpg', fetch(this.coverImage).then(response => response.blob()));
+    }
+
+    return this.zip.generateAsync({ type: 'blob' });
+  }
+
+  buildNavMap(chapters) {
+    let navPoints = '';
+    chapters.forEach((chapter, index) => {
+      const navPoint = `<navPoint id="navpoint${index + 1}" playOrder="${index + 1}">
+        <navLabel><text>${chapter.title}</text></navLabel>
+        <content src="chapter${index + 1}.html"/>
+      </navPoint>`;
+      navPoints += navPoint;
+    });
+    return navPoints;
+  }
+}
