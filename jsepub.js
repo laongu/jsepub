@@ -102,7 +102,18 @@ class jsEpub {
       this.zip.folder('OEBPS').file('cover.jpg', fetch(this.coverImage).then(response => response.blob()));
     }
 
-    return this.zip.generateAsync({ type: 'blob' });
+    const mimetype = 'application/epub+zip';
+    this.zip.file('mimetype', mimetype);
+
+    return this.zip.generateAsync({
+      type: 'blob',
+      mimeType: mimetype,
+      compression: 'DEFLATE',
+      compressionOptions: {
+        level: 9
+      }
+    });
+
   }
 
   buildNavMap(chapters) {
