@@ -40,10 +40,11 @@ class jsEpub {
       <head><title>${this.title}</title></head>
       <body>
         <h1>${this.title}</h1>
+        ${this.coverImage ? '<div><img src="cover.jpg" style="max-width: 600px" /></div>' : ''}
         <p>${this.author}</p>
         <p>${this.publisher}</p>
-        <p>${this.description}</p>
         <p>${this.tags.join(', ')}</p>
+        <p>${this.description}</p>
       </body>
     </html>`;
 
@@ -59,12 +60,13 @@ class jsEpub {
           ${this.tags.map(tag => `<dc:subject>${tag}</dc:subject>`).join('\n')}
         </metadata>
         <manifest>
-          <item id="title" href="title.html" media-type="application/xhtml+xml"/>
           <item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>
+          <item id="title" href="title.html" media-type="application/xhtml+xml"/>
           ${this.chapters.map((chapter, index) => `<item id="chapter${index + 1}" href="chapter${index + 1}.html" media-type="application/xhtml+xml"/>`).join('\n')}
           ${this.coverImage ? '<item id="cover-image" href="cover.jpg" media-type="image/jpeg"/>' : ''}
         </manifest>
         <spine toc="ncx">
+          <itemref idref="title"/>
           ${this.chapters.map((chapter, index) => `<itemref idref="chapter${index + 1}"/>`).join('\n')}
         </spine>
         ${this.coverImage ? '<guide><reference type="cover" title="Cover" href="cover.jpg"/></guide>' : ''}
@@ -82,6 +84,12 @@ class jsEpub {
         </head>
         <docTitle><text>${this.title}</text></docTitle>
         <navMap>
+          <navPoint id="title-page" playOrder="1">
+            <navLabel>
+              <text>${this.title}</text>
+            </navLabel>
+            <content src="title.html" />
+          </navPoint>
           ${this.buildNavMap(this.chapters)}
         </navMap>
       </ncx>`;
@@ -92,7 +100,10 @@ class jsEpub {
       const filename = `chapter${index + 1}.html`;
       const content = `<html xmlns="http://www.w3.org/1999/xhtml">
         <head><title>${chapter.title}</title></head>
-        <body>${chapter.content}</body>
+        <body>
+          <h2>${chapter.title}</h2>
+          <div>${chapter.content}</div>
+        </body>
       </html>`;
 
       this.zip.folder('OEBPS').file(filename, content);
@@ -119,7 +130,7 @@ class jsEpub {
   buildNavMap(chapters) {
     let navPoints = '';
     chapters.forEach((chapter, index) => {
-      const navPoint = `<navPoint id="navpoint${index + 1}" playOrder="${index + 1}">
+      const navPoint = `<navPoint id="navpoint${index + 1}" playOrder="${index + 2}">
         <navLabel><text>${chapter.title}</text></navLabel>
         <content src="chapter${index + 1}.html"/>
       </navPoint>`;
